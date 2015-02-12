@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="75dp">
+<ImageView
+    android:layout_width="40dp"
+    android:layout_height="40dp"
+    android:layout_alignParentLeft="true"
+    android:layout_centerVertical="true"
+    android:layout_marginLeft="8dp"
+    android:id="@+id/partyIcon"/>
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_toRightOf="@id/partyIcon"
+        android:layout_centerVertical="true"
+        android:layout_marginLeft="16dp">
+        <TextView
+            android:id="@+id/representativeName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Representative Name"/>
+        <TextView
+            android:id="@+id/officeLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Office Label"
+            android:layout_marginTop="8dp"
+            />
+    </LinearLayout>
+
+
+</RelativeLayout>
