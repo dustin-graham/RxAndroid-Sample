@@ -38,6 +38,7 @@ import rx.schedulers.Schedulers;
 import rx.subscriptions.CompositeSubscription;
 import timber.log.Timber;
 
+import static rx.android.app.AppObservable.bindActivity;
 import static rx.android.content.ContentObservable.fromBroadcast;
 
 public class MainActivity extends ActionBarActivity {
@@ -67,16 +68,16 @@ public class MainActivity extends ActionBarActivity {
 
         _subscriptions = new CompositeSubscription();
 
-        _subscriptions.add(createBufferedSearchObservable(searchField).subscribe(onQueryEntered()));
+        _subscriptions.add(bindActivity(this, createBufferedSearchObservable(searchField)).subscribe(onQueryEntered()));
 
-        _subscriptions.add(fromBroadcast(this, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+        _subscriptions.add(bindActivity(this,fromBroadcast(this, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)))
                 .subscribe(onConnectivityChanged()));
 
         LocationManager locationManager = (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
         Geocoder geocoder = new Geocoder(this);
-        _subscriptions.add(ReverseGeocodeLocationService.getCurrentZip(locationManager, geocoder)
+        _subscriptions.add(bindActivity(this, ReverseGeocodeLocationService.getCurrentZip(locationManager, geocoder)
                 .observeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
+                .observeOn(AndroidSchedulers.mainThread()))
                 .subscribe(onZipCodeReceived()));
 
     }
