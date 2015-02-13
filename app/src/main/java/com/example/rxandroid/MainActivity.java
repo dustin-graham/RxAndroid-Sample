@@ -23,6 +23,7 @@ import com.example.rxandroid.api.Representative;
 import com.example.rxandroid.api.RepresentativeAdapter;
 import com.example.rxandroid.api.RepresentativeApi;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -32,8 +33,11 @@ import fr.castorflex.android.smoothprogressbar.SmoothProgressBar;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
+import rx.android.app.AppObservable;
 import rx.android.schedulers.AndroidSchedulers;
 import rx.functions.Action1;
+import rx.functions.Func1;
+import rx.functions.Func2;
 import rx.schedulers.Schedulers;
 import rx.subscriptions.CompositeSubscription;
 import timber.log.Timber;
@@ -76,7 +80,7 @@ public class MainActivity extends ActionBarActivity {
         LocationManager locationManager = (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
         Geocoder geocoder = new Geocoder(this);
         _subscriptions.add(bindActivity(this, ReverseGeocodeLocationService.getCurrentZip(locationManager, geocoder)
-                .observeOn(Schedulers.io())
+                .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread()))
                 .subscribe(onZipCodeReceived()));
 
@@ -92,6 +96,12 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public void onError(Throwable e) {
                 Timber.d("geocoder error: " + e.getMessage());
+                new AlertDialog.Builder(MainActivity.this).setTitle("Location Error").setMessage("Failed to find your current zip code").setPositiveButton("OK", new DialogInterface.OnClickListener() {
+                    @Override
+                    public void onClick(DialogInterface dialog, int which) {
+                        dialog.dismiss();
+                    }
+                }).create().show();
             }
 
             @Override
@@ -106,12 +116,12 @@ public class MainActivity extends ActionBarActivity {
             @Override
             public void call(String s) {
                 progressBar.setVisibility(View.VISIBLE);
-                representativeApi.representativesByZipCode(s)
-                //representativeApi.representativesByZipCodeFlaky(s)
+//                representativeApi.representativesByZipCode(s)
+                representativeApi.representativesByZipCodeFlaky(s)
                     .observeOn(AndroidSchedulers.mainThread())
                     .subscribeOn(Schedulers.io())
                     .toList()
-                        //.retry(2)
+                    .retry(2)
                     .subscribe(onRepresentativesReceived());
             }
         };
