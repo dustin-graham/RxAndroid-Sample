@@ -107,8 +107,11 @@ public class MainActivity extends ActionBarActivity {
             public void call(String s) {
                 progressBar.setVisibility(View.VISIBLE);
                 representativeApi.representativesByZipCode(s)
-                    .toList()
+                //representativeApi.representativesByZipCodeFlaky(s)
                     .observeOn(AndroidSchedulers.mainThread())
+                    .subscribeOn(Schedulers.io())
+                    .toList()
+                        //.retry(2)
                     .subscribe(onRepresentativesReceived());
             }
         };
