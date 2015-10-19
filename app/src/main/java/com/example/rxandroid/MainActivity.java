@@ -1,15 +1,18 @@
 package com.example.rxandroid;
 
+import android.Manifest;
 import android.app.AlertDialog;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.pm.PackageManager;
 import android.location.Geocoder;
 import android.location.LocationManager;
 import android.net.ConnectivityManager;
 import android.os.Bundle;
-import android.support.v7.app.ActionBarActivity;
+import android.support.v4.app.ActivityCompat;
 import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
@@ -22,45 +25,51 @@ import android.widget.EditText;
 import com.example.rxandroid.api.Representative;
 import com.example.rxandroid.api.RepresentativeAdapter;
 import com.example.rxandroid.api.RepresentativeApi;
+import com.example.rxandroid.util.ProgressObservable;
+import com.trello.rxlifecycle.ActivityEvent;
+import com.trello.rxlifecycle.components.support.RxAppCompatActivity;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import butterknife.Bind;
 import butterknife.ButterKnife;
-import butterknife.InjectView;
+import butterknife.OnClick;
 import fr.castorflex.android.smoothprogressbar.SmoothProgressBar;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
-import rx.android.app.AppObservable;
+import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func1;
-import rx.functions.Func2;
 import rx.schedulers.Schedulers;
 import rx.subscriptions.CompositeSubscription;
+import rx.subscriptions.Subscriptions;
 import timber.log.Timber;
 
-import static rx.android.app.AppObservable.bindActivity;
-import static rx.android.content.ContentObservable.fromBroadcast;
+import static com.example.rxandroid.util.ContentObservable.fromBroadcast;
 
-public class MainActivity extends ActionBarActivity {
+public class MainActivity extends RxAppCompatActivity {
 
+    public static final int LOCATION_PERMISSION_REQUEST_CODE = 100;
     private CompositeSubscription _subscriptions;
-    @InjectView(R.id.searchField) EditText searchField;
-    @InjectView(R.id.resultList) RecyclerView resultList;
-    @InjectView(R.id.loadingProgress)
+    @Bind(R.id.searchField) EditText searchField;
+    @Bind(R.id.resultList) RecyclerView resultList;
+    @Bind(R.id.loadingProgress)
     SmoothProgressBar progressBar;
     private RepresentativeAdapter adapter;
     private RecyclerView.LayoutManager layoutManager;
     private RepresentativeApi representativeApi;
+    private LocationManager locationManager;
+    private Geocoder geocoder;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        ButterKnife.inject(this);
+        ButterKnife.bind(this);
 
         resultList.setHasFixedSize(true);
         layoutManager = new LinearLayoutManager(this);
@@ -72,43 +81,90 @@ public class MainActivity extends ActionBarActivity {
 
         _subscriptions = new CompositeSubscription();
 
-        _subscriptions.add(bindActivity(this, createBufferedSearchObservable(searchField)).subscribe(onQueryEntered()));
+        createBufferedSearchObservable(searchField)
+                .flatMap(new Func1<String, Observable<List<Representative>>>() {
+                    @Override
+                    public Observable<List<Representative>> call(String s) {
+                        return representativeApi.representativesByZipCode(s).toList();
+                    }
+                })
+                .compose(this.<List<Representative>>bindToLifecycle())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(onRepresentativesReceived());
 
-        _subscriptions.add(bindActivity(this,fromBroadcast(this, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION)))
-                .subscribe(onConnectivityChanged()));
+        fromBroadcast(this, new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION))
+                .compose(this.<Intent>bindToLifecycle())
+                .subscribe(onConnectivityChanged());
 
-        LocationManager locationManager = (android.location.LocationManager) getSystemService(Context.LOCATION_SERVICE);
-        Geocoder geocoder = new Geocoder(this);
-        _subscriptions.add(bindActivity(this, ReverseGeocodeLocationService.getCurrentZip(locationManager, geocoder)
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread()))
-                .subscribe(onZipCodeReceived()));
+        locationManager = (LocationManager) getSystemService(Context.LOCATION_SERVICE);
+        geocoder = new Geocoder(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+    }
+
+    @OnClick(R.id.look_up_zip_button)
+    void onAutoFindButtonClicked() {
+
+        Observable<String> zipObservable = ReverseGeocodeLocationService
+                .getCurrentZip(MainActivity.this, locationManager, geocoder);
+
+        ProgressObservable
+            .fromObservable(zipObservable, this, "Finding Zip Code", "Please Wait…", true, true)
+            .compose(this.<String>bindUntilEvent(ActivityEvent.PAUSE))
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe(new Subscriber<String>() {
+                @Override
+                public void onCompleted() {
+
+                }
+
+                @Override
+                public void onError(Throwable e) {
+                    new AlertDialog.Builder(MainActivity.this)
+                            .setTitle("Error!")
+                            .setMessage(e.getMessage()).create().show();
+                }
+
+                @Override
+                public void onNext(String s) {
+                    onZipCodeReceived(s);
+                }
+            });
 
     }
 
-    private Observer<String> onZipCodeReceived() {
-        return new Observer<String>() {
-            @Override
-            public void onCompleted() {
-                Timber.d("geocoder completed");
-            }
+    private void requestPermission() {
+        ActivityCompat.requestPermissions(this,new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                LOCATION_PERMISSION_REQUEST_CODE);
+    }
 
-            @Override
-            public void onError(Throwable e) {
-                Timber.d("geocoder error: " + e.getMessage());
-                new AlertDialog.Builder(MainActivity.this).setTitle("Location Error").setMessage("Failed to find your current zip code").setPositiveButton("OK", new DialogInterface.OnClickListener() {
+    private void showLocationPermissionExplanation() {
+        new AlertDialog.Builder(MainActivity.this)
+                .setTitle("Location Permission")
+                .setMessage("Grant this application location access to automatically find your representatives")
+                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
                     @Override
                     public void onClick(DialogInterface dialog, int which) {
-                        dialog.dismiss();
+                        requestPermission();
                     }
-                }).create().show();
-            }
+                })
+                .create()
+                .show();
+    }
 
-            @Override
-            public void onNext(String s) {
-                searchField.setText(s);
-            }
-        };
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        if (requestCode == LOCATION_PERMISSION_REQUEST_CODE && grantResults.length > 0
+            && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+//            getZipCode();
+        }
+    }
+
+    private void onZipCodeReceived(String zipcode) {
+        searchField.setText(zipcode);
     }
 
     private Action1<String> onQueryEntered() {
@@ -118,8 +174,8 @@ public class MainActivity extends ActionBarActivity {
                 progressBar.setVisibility(View.VISIBLE);
 //                representativeApi.representativesByZipCode(s)
                 representativeApi.representativesByZipCodeFlaky(s)
-                    .observeOn(AndroidSchedulers.mainThread())
                     .subscribeOn(Schedulers.io())
+                    .observeOn(AndroidSchedulers.mainThread())
                     .toList()
                     .retry(2)
                     .subscribe(onRepresentativesReceived());
@@ -188,7 +244,7 @@ public class MainActivity extends ActionBarActivity {
                 });
             }
 
-        }).debounce(400, TimeUnit.MILLISECONDS, Schedulers.io()).observeOn(AndroidSchedulers.mainThread());
+        }).debounce(1, TimeUnit.SECONDS, Schedulers.io());
         return searchFieldObservable;
     }
 
