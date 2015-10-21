@@ -13,15 +13,19 @@
         android:theme="@style/Theme.AppCompat.Light"
         android:name=".App">
 
-        <activity
-            android:name=".MainActivity"
-            android:label="@string/app_name" >
+        <activity android:name=".SampleDirectoryActivity" android:label="@string/samples">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".FunnyRepresentativesActivity"
+            android:label="@string/app_name" />
+        <activity android:name=".ImperativeWageCalculatorActivity"
+            android:label="Imperative Wage Calculator"/>
+        <activity android:name=".ReactiveWageCalculatorActivity"
+            android:label="Reactive Wage Calculator"/>
     </application>
 
 </manifest>

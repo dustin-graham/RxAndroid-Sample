@@ -2,7 +2,6 @@ package com.example.rxandroid;
 
 import android.Manifest;
 import android.app.AlertDialog;
-import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -17,6 +16,7 @@ import android.support.v7.widget.LinearLayoutManager;
 import android.support.v7.widget.RecyclerView;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.view.View;
@@ -39,19 +39,15 @@ import fr.castorflex.android.smoothprogressbar.SmoothProgressBar;
 import rx.Observable;
 import rx.Observer;
 import rx.Subscriber;
-import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
-import rx.functions.Action0;
 import rx.functions.Action1;
 import rx.functions.Func1;
 import rx.schedulers.Schedulers;
 import rx.subscriptions.CompositeSubscription;
-import rx.subscriptions.Subscriptions;
-import timber.log.Timber;
 
 import static com.example.rxandroid.util.ContentObservable.fromBroadcast;
 
-public class MainActivity extends RxAppCompatActivity {
+public class FunnyRepresentativesActivity extends RxAppCompatActivity {
 
     public static final int LOCATION_PERMISSION_REQUEST_CODE = 100;
     private CompositeSubscription _subscriptions;
@@ -109,7 +105,7 @@ public class MainActivity extends RxAppCompatActivity {
     void onAutoFindButtonClicked() {
 
         Observable<String> zipObservable = ReverseGeocodeLocationService
-                .getCurrentZip(MainActivity.this, locationManager, geocoder);
+                .getCurrentZip(FunnyRepresentativesActivity.this, locationManager, geocoder);
 
         ProgressObservable
             .fromObservable(zipObservable, this, "Finding Zip Code", "Please Wait…", true, true)
@@ -123,7 +119,7 @@ public class MainActivity extends RxAppCompatActivity {
 
                 @Override
                 public void onError(Throwable e) {
-                    new AlertDialog.Builder(MainActivity.this)
+                    new AlertDialog.Builder(FunnyRepresentativesActivity.this)
                             .setTitle("Error!")
                             .setMessage(e.getMessage()).create().show();
                 }
@@ -142,7 +138,7 @@ public class MainActivity extends RxAppCompatActivity {
     }
 
     private void showLocationPermissionExplanation() {
-        new AlertDialog.Builder(MainActivity.this)
+        new AlertDialog.Builder(FunnyRepresentativesActivity.this)
                 .setTitle("Location Permission")
                 .setMessage("Grant this application location access to automatically find your representatives")
                 .setPositiveButton("OK", new DialogInterface.OnClickListener() {
@@ -210,7 +206,7 @@ public class MainActivity extends RxAppCompatActivity {
                 boolean noConnectivity = intent.getBooleanExtra(
                         ConnectivityManager.EXTRA_NO_CONNECTIVITY, false);
                 if (noConnectivity) {
-                    new AlertDialog.Builder(MainActivity.this).setTitle("Connectivity Error").setMessage("Network access is currently unavailable. Please reconnect.").setPositiveButton("OK",new DialogInterface.OnClickListener() {
+                    new AlertDialog.Builder(FunnyRepresentativesActivity.this).setTitle("Connectivity Error").setMessage("Network access is currently unavailable. Please reconnect.").setPositiveButton("OK",new DialogInterface.OnClickListener() {
                         @Override
                         public void onClick(DialogInterface dialog, int which) {
                             dialog.dismiss();
