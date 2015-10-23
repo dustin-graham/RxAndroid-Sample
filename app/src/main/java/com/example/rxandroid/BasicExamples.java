@@ -56,4 +56,11 @@ public class BasicExamples {
                 }
             });
     }
+
+    public void testMergeCompletedBehavior() {
+
+        Observable<Integer> one = Observable.from(new Integer[]{1,2,3,4,5});
+        Observable<Integer> two = Observable.from(new Integer[]{1,2,3,4,5,6,7,8,9,10});
+
+    }
 }
